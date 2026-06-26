@@ -11,12 +11,18 @@ inputs:
     description: 'FTP password'
     required: true
   ftp-path:
-    description: 'Remote path (no trailing slash)'
+    description: 'Remote path (no trailing slash). server-dir = ftp-path + /'
     required: true
   local-dir:
     description: 'Local directory to upload'
     required: false
     default: './dist/'
+  exclude:
+    description: 'Glob patterns to exclude (multiline, one per line). Default excludes .git and .github.'
+    required: false
+    default: |
+      **/.git*
+      **/.github/**
 runs:
   using: composite
   steps:
@@ -28,3 +34,4 @@ runs:
         local-dir: ${{ inputs.local-dir }}
         server-dir: ${{ inputs.ftp-path }}/
         security: loose
+        exclude: ${{ inputs.exclude }}
