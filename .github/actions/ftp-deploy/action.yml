@@ -1,0 +1,30 @@
+name: 'FTP Deploy'
+description: 'Deploy files to FTP server via FTPS (security:loose for self-signed certs)'
+inputs:
+  ftp-host:
+    description: 'FTP hostname'
+    required: true
+  ftp-user:
+    description: 'FTP username'
+    required: true
+  ftp-pass:
+    description: 'FTP password'
+    required: true
+  ftp-path:
+    description: 'Remote path (no trailing slash)'
+    required: true
+  local-dir:
+    description: 'Local directory to upload'
+    required: false
+    default: './dist/'
+runs:
+  using: composite
+  steps:
+    - uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65
+      with:
+        server: ${{ inputs.ftp-host }}
+        username: ${{ inputs.ftp-user }}
+        password: ${{ inputs.ftp-pass }}
+        local-dir: ${{ inputs.local-dir }}
+        server-dir: ${{ inputs.ftp-path }}/
+        security: loose
