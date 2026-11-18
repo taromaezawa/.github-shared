@@ -45,6 +45,9 @@ runs:
         if printf '%s' "${FTP_HOST}" | grep -Eq '^[0-9.]+$|:'; then
           echo "::error::ftp-host must be the certificate hostname, not an IP address or host:port" >&2; exit 1
         fi
+        if [ -z "${FTP_PATH}" ]; then
+          echo "::error::ftp-path is empty (set '.' for the account root, or the subfolder). Refusing to deploy to an unintended place." >&2; exit 1
+        fi
         case "/${FTP_PATH}/" in
           *'/../'*) echo "::error::ftp-path must not contain '..'" >&2; exit 1 ;;
         esac
