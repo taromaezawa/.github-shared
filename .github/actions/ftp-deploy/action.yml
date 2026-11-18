@@ -1,18 +1,26 @@
-name: 'FTP Deploy'
-description: 'Deploy files to FTP server via FTPS (security:loose for self-signed certs)'
+name: 'FTP Deploy (FTPS, certificate verified)'
+description: 'Deploy files over explicit FTPS with certificate verification (security: strict). Plain FTP and unverified TLS are not available.'
+# セキュリティ方針（2026-11-18）:
+# - 暗号化（protocol: ftps = explicit FTPS, port 21）と証明書の検証（security: strict）はここで固定し、入力では変えられない。
+#   旧版（484a901 以前）は protocol を渡しておらず平文 FTP で送っていた。説明文の「FTPS」は誤りだった。
+# - ftp-host は証明書の名前（例: ik10003.mixhost.jp）にする。別名（ftp.<domain>）や IP では検証に失敗して止まる。
+#   explicit FTPS は AUTH TLS・証明書検証に失敗すると USER/PASS を送る前に例外で止まり、アップロードしない。
+# - FTP アカウントは配信先フォルダだけをディレクトリにした専用アカウントにする（ftp-path は通常 '.'）。
+# - 利用側は @main ではなくコミット SHA で固定する。
 inputs:
   ftp-host:
-    description: 'FTP hostname'
+    description: 'FTP hostname that matches the server certificate (not an alias or IP)'
     required: true
   ftp-user:
-    description: 'FTP username'
+    description: 'FTP username (a dedicated account limited to the deploy folder)'
     required: true
   ftp-pass:
     description: 'FTP password'
     required: true
   ftp-path:
-    description: 'Remote path (no trailing slash). server-dir = ftp-path + /'
-    required: true
+    description: "Remote path relative to the FTP account's root, without trailing slash. Use '.' when the account's root is the deploy folder."
+    required: false
+    default: '.'
   local-dir:
     description: 'Local directory to upload'
     required: false
@@ -26,12 +34,28 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Check inputs (fail closed)
+      shell: bash
+      env:
+        FTP_HOST: ${{ inputs.ftp-host }}
+        FTP_PATH: ${{ inputs.ftp-path }}
+      run: |
+        set -euo pipefail
+        if [ -z "${FTP_HOST}" ]; then echo "::error::ftp-host is empty" >&2; exit 1; fi
+        if printf '%s' "${FTP_HOST}" | grep -Eq '^[0-9.]+$|:'; then
+          echo "::error::ftp-host must be the certificate hostname, not an IP address or host:port" >&2; exit 1
+        fi
+        case "/${FTP_PATH}/" in
+          *'/../'*) echo "::error::ftp-path must not contain '..'" >&2; exit 1 ;;
+        esac
     - uses: SamKirkland/FTP-Deploy-Action@8e83cea8672e3fbcbb9fdafff34debf6ae4c5f65
       with:
         server: ${{ inputs.ftp-host }}
         username: ${{ inputs.ftp-user }}
         password: ${{ inputs.ftp-pass }}
+        protocol: ftps
+        port: 21
+        security: strict
         local-dir: ${{ inputs.local-dir }}
         server-dir: ${{ inputs.ftp-path }}/
-        security: loose
         exclude: ${{ inputs.exclude }}
